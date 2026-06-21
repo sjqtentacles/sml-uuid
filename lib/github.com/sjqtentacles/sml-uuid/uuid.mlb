@@ -1,7 +1,10 @@
 (* MLton basis file for the sml-uuid library.
- * Brings `structure Uuid` (matching UUID) into scope. *)
+ * Brings `structure Uuid` (matching UUID) into scope.
+ * sml-codec is vendored and kept local so only `structure Uuid` is exported;
+ * its `Sha1.digest` backs UUID v5 (name-based, SHA-1). *)
 local
   $(SML_LIB)/basis/basis.mlb
+  ../sml-codec/sml-codec.mlb
 in
   uuid.sig
   uuid.sml

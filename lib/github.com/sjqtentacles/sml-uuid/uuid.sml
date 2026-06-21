@@ -113,4 +113,25 @@ struct
               handle Bad => NONE
             end
         end
+
+  (* ---- v5 (name-based, SHA-1) ---- *)
+  (* The standard RFC 4122 namespace UUIDs. These literals are well-formed, so
+     fromString never returns NONE here. *)
+  fun ns s = valOf (fromString s)
+  val namespaceDns  = ns "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+  val namespaceUrl  = ns "6ba7b811-9dad-11d1-80b4-00c04fd430c8"
+  val namespaceOid  = ns "6ba7b812-9dad-11d1-80b4-00c04fd430c8"
+  val namespaceX500 = ns "6ba7b814-9dad-11d1-80b4-00c04fd430c8"
+
+  (* SHA-1 over the 16 namespace bytes followed by the name; the first 16 bytes
+     of the 20-byte digest become the UUID, then version 5 and the variant bits
+     are stamped. Sha1.digest treats a string as a byte sequence. *)
+  fun v5 {namespace, name} =
+      let
+        val digest = Sha1.digest (Byte.bytesToString namespace ^ name)
+        val arr = Array.tabulate (16, fn i => Byte.charToByte (String.sub (digest, i)))
+      in
+        stamp (arr, 5);
+        Word8Vector.tabulate (16, fn i => Array.sub (arr, i))
+      end
 end

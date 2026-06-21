@@ -108,6 +108,54 @@ fun run () =
     val () = check "reject extra hyphen group"
                    (rejects "0001-0203-0405-4607-8809-0a0b0c0d0e0f")
 
+    (* ---- v5 (name-based, SHA-1) ---- *)
+    (* standard RFC 4122 namespace UUIDs *)
+    val () = check "namespaceDns string"
+                   (U.toString U.namespaceDns = "6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+    val () = check "namespaceUrl string"
+                   (U.toString U.namespaceUrl = "6ba7b811-9dad-11d1-80b4-00c04fd430c8")
+    val () = check "namespaceOid string"
+                   (U.toString U.namespaceOid = "6ba7b812-9dad-11d1-80b4-00c04fd430c8")
+    val () = check "namespaceX500 string"
+                   (U.toString U.namespaceX500 = "6ba7b814-9dad-11d1-80b4-00c04fd430c8")
+
+    (* known RFC 4122 v5 vectors *)
+    val v5dns1 = U.v5 {namespace = U.namespaceDns, name = "example.com"}
+    val () = check "v5 dns example.com"
+                   (U.toString v5dns1 = "cfbff0d1-9375-5685-968c-48ce8b15ae17")
+    val v5dns2 = U.v5 {namespace = U.namespaceDns, name = "python.org"}
+    val () = check "v5 dns python.org"
+                   (U.toString v5dns2 = "886313e1-3b8a-5372-9b90-0c9aee199e5d")
+    val v5url = U.v5 {namespace = U.namespaceUrl, name = "http://example.com/"}
+    val () = check "v5 url http://example.com/"
+                   (U.toString v5url = "0a300ee9-f9e4-5697-a51a-efc7fafaba67")
+
+    (* version nibble and variant bits *)
+    val () = check "v5 version is 5" (U.version v5dns1 = 5)
+    val () = check "v5 bytes length 16" (Word8Vector.length (U.bytes v5dns1) = 16)
+    val () =
+      let val variantChar = String.sub (U.toString v5dns1, 19)
+      in check "v5 variant nibble in {8,9,a,b}"
+               (variantChar = #"8" orelse variantChar = #"9"
+                orelse variantChar = #"a" orelse variantChar = #"b")
+      end
+    val () =
+      let val b8 = Word8Vector.sub (U.bytes v5dns1, 8)
+      in check "v5 variant bits 10xxxxxx"
+               (Word8.andb (b8, 0wxC0) = 0wx80)
+      end
+
+    (* deterministic: same inputs -> same output *)
+    val () = check "v5 deterministic"
+                   (U.equals (v5dns1, U.v5 {namespace = U.namespaceDns, name = "example.com"}))
+    (* different name -> different uuid *)
+    val () = check "v5 distinct names differ" (not (U.equals (v5dns1, v5dns2)))
+
+    (* toString / fromString round-trip for v5 *)
+    val () = check "v5 fromString round-trips"
+                   (case U.fromString (U.toString v5dns1) of
+                        SOME u => U.equals (u, v5dns1) | NONE => false)
+
     (* ---- equals discriminates ---- *)
     val () = check "different uuids not equal" (not (U.equals (u4, U.nil_)))
     val () = check "v4 differs from all-FF v4" (not (U.equals (u4, uff)))
