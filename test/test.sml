@@ -1,26 +1,22 @@
-(* Dependency-free test runner for the Uuid structure.
- * Prints one line per assertion and exits non-zero if any assertion fails. *)
+(* Test suite for the Uuid structure, standardized on the shared
+ * sml-test Harness. *)
 
-val passed = ref 0
-val failed = ref 0
+structure Tests =
+struct
+  open Harness
 
-fun check (name : string) (cond : bool) : unit =
-    if cond
-    then (passed := !passed + 1; print ("ok   - " ^ name ^ "\n"))
-    else (failed := !failed + 1; print ("FAIL - " ^ name ^ "\n"))
+  structure U = Uuid
 
-structure U = Uuid
+  (* a deterministic byte source: 0,1,2,...,255,0,1,... *)
+  fun counter () =
+      let val r = ref 0
+      in fn () => let val v = !r in r := (v + 1) mod 256; Word8.fromInt v end end
 
-(* a deterministic byte source: 0,1,2,...,255,0,1,... *)
-fun counter () =
-    let val r = ref 0
-    in fn () => let val v = !r in r := (v + 1) mod 256; Word8.fromInt v end end
+  (* a constant byte source *)
+  fun constByte b () = Word8.fromInt b
 
-(* a constant byte source *)
-fun constByte b () = Word8.fromInt b
-
-fun run () =
-  let
+  fun run () =
+    let
     (* ---- nil ---- *)
     val () = check "nil toString" (U.toString U.nil_ = "00000000-0000-0000-0000-000000000000")
     val () = check "nil bytes length 16" (Word8Vector.length (U.bytes U.nil_) = 16)
@@ -160,9 +156,6 @@ fun run () =
     val () = check "different uuids not equal" (not (U.equals (u4, U.nil_)))
     val () = check "v4 differs from all-FF v4" (not (U.equals (u4, uff)))
   in
-    print ("\n" ^ Int.toString (!passed) ^ " passed, "
-           ^ Int.toString (!failed) ^ " failed\n");
-    OS.Process.exit (if !failed = 0 then OS.Process.success else OS.Process.failure)
+    Harness.run ()
   end
-
-val () = run ()
+end

@@ -7,14 +7,13 @@
 #   make clean      remove build artifacts
 
 MLTON      ?= mlton
-POLY       ?= poly
 BIN        := bin
 LIBDIR     := lib/github.com/sjqtentacles/sml-uuid
 CODECDIR   := lib/github.com/sjqtentacles/sml-codec
-TEST_MLB   := test/test.mlb
+TEST_MLB   := test/sources.mlb
 SRCS       := $(wildcard $(LIBDIR)/*.sml $(LIBDIR)/*.sig $(LIBDIR)/*.mlb) \
               $(wildcard $(CODECDIR)/*.sml $(CODECDIR)/*.sig $(CODECDIR)/*.mlb) \
-              test/test.sml $(TEST_MLB)
+              $(wildcard test/*.sml) $(TEST_MLB)
 
 .PHONY: all test poly test-poly all-tests clean
 
@@ -26,12 +25,15 @@ $(BIN)/test-mlton: $(SRCS) | $(BIN)
 test: $(BIN)/test-mlton
 	$(BIN)/test-mlton
 
-# Poly/ML has no native .mlb support; the test suite runs at top level and
-# exits on its own, so we just `use` the sources in order. No executable is
-# exported, which sidesteps any linker quirks. The vendored SHA-1 sources are
-# `use`d first since UUID v5 depends on them.
-poly test-poly:
-	printf 'use "$(CODECDIR)/sha1.sig";\nuse "$(CODECDIR)/sha1.sml";\nuse "$(LIBDIR)/uuid.sig";\nuse "$(LIBDIR)/uuid.sml";\nuse "test/test.sml";\n' | $(POLY) -q --error-exit
+poly: $(BIN)/test-poly
+
+# Poly/ML has no native .mlb support; tools/polybuild expands the .mlb in
+# dependency order, `use`s each source, and exports `main`.
+$(BIN)/test-poly: $(SRCS) tools/polybuild | $(BIN)
+	sh tools/polybuild -o $@ $(TEST_MLB)
+
+test-poly: $(BIN)/test-poly
+	$(BIN)/test-poly
 
 all-tests: test test-poly
 
